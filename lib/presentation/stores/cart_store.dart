@@ -2,15 +2,21 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/errors/app_exception.dart';
 import '../../core/result.dart';
+import '../../data/my_preferences.dart';
 import '../../domain/entities/cart.dart';
 import '../../domain/entities/cart_item.dart';
 import '../../domain/entities/completed_order.dart';
 import '../../domain/entities/product.dart';
 
 class CartStore {
+  CartStore({required MyPreferences preferences}) : _preferences = preferences {
+    _loadCart();
+  }
+
   static const int maxDistinctProducts = 10;
   static const int maxQuantityPerProduct = 10;
 
+  final MyPreferences _preferences;
   final ValueNotifier<Cart> cart = ValueNotifier<Cart>(const Cart.empty());
 
   CompletedOrder? _lastCompletedOrder;
@@ -164,5 +170,11 @@ class CartStore {
       items: List<CartItem>.unmodifiable(nextCart.items),
       isLocked: nextCart.isLocked,
     );
+    _preferences.cartSnapshot.save(cart.value);
+  }
+
+  Future<void> _loadCart() async {
+    final savedCart = await _preferences.cartSnapshot.value;
+    cart.value = savedCart;
   }
 }

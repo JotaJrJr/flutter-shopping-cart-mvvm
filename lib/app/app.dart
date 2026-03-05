@@ -7,6 +7,7 @@ import '../data/repositories/checkout_repository_impl.dart';
 import '../data/repositories/products_repository_impl.dart';
 import '../data/services/cart_api.dart';
 import '../data/services/checkout_api.dart';
+import '../data/my_preferences.dart';
 import '../data/services/products_api.dart';
 import '../domain/entities/product.dart';
 import '../domain/usecases/checkout_use_case.dart';
@@ -35,7 +36,7 @@ class _ShoppingCartAppState extends State<ShoppingCartApp> {
   void initState() {
     super.initState();
 
-    _cartStore = CartStore();
+    _cartStore = CartStore(preferences: MyPreferences());
     _loadProductsUseCase = LoadProductsUseCase(
       ProductsRepositoryImpl(ProductsApi()),
     );

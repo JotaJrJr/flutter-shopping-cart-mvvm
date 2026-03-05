@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shoppin_cart_mvvm/domain/entities/cart.dart';
 
 class MyPreferences {
   static final MyPreferences _instance = MyPreferences._internal();
@@ -9,8 +11,12 @@ class MyPreferences {
 
   MyPreferences._internal();
 
-  final userId = Cached<String?>('userId', null);
-  final cartSnapshotJson = Cached<String>('cartSnapshotJson', '');
+  final cartSnapshot = Cached<Cart>(
+    'listaCarrinho',
+    const Cart.empty(),
+    decoder: (str) => Cart.fromMap(jsonDecode(str) as Map<String, dynamic>),
+    encoder: (cart) => jsonEncode(cart.toMap()),
+  );
 }
 
 class Cached<T> {
