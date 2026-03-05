@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../core/command.dart';
+import '../../core/errors/app_exception.dart';
 import '../../core/result.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/usecases/checkout_use_case.dart';
@@ -14,28 +15,44 @@ class CartViewModel extends ChangeNotifier {
     required CheckoutUseCase checkoutUseCase,
   }) : _cartStore = cartStore,
        _syncCartUseCase = syncCartUseCase,
-       _checkoutUseCase = checkoutUseCase,
-       updateCartCommand = Command1<CartMutation>(
-         (mutation) async => const Success<void>(null),
-       ),
-       checkoutCommand = Command0(() async => const Success<void>(null)) {
-    updateCartCommand = Command1<CartMutation>(_updateCart);
-    checkoutCommand = Command0(_checkout);
+       _checkoutUseCase = checkoutUseCase {
+    adicionarProdutoCommand = AdicionarProdutoCommand<Product>(
+      _incrementProduct,
+    );
+    decrementarProdutoCommand = RemoverProdutoCommand<Product>(
+      _decrementProduct,
+    );
+    removerProdutoCommand = RemoverProdutoCommand<Product>(_removeProduct);
+    checkoutCommand = FinalizarCompraCommand(_checkout);
   }
 
   final CartStore _cartStore;
   final SyncCartUseCase _syncCartUseCase;
   final CheckoutUseCase _checkoutUseCase;
 
-  late Command1<CartMutation> updateCartCommand;
-  late Command0 checkoutCommand;
+  late final AdicionarProdutoCommand<Product> adicionarProdutoCommand;
+  late final RemoverProdutoCommand<Product> decrementarProdutoCommand;
+  late final RemoverProdutoCommand<Product> removerProdutoCommand;
+  late final FinalizarCompraCommand checkoutCommand;
 
-  Future<Result<void>> _updateCart(CartMutation mutation) async {
+  bool get isUpdateCartRunning =>
+      adicionarProdutoCommand.running ||
+      decrementarProdutoCommand.running ||
+      removerProdutoCommand.running;
+  AppException? get updateCartError =>
+      adicionarProdutoCommand.error ??
+      decrementarProdutoCommand.error ??
+      removerProdutoCommand.error;
+
+  Future<Result<void>> _updateCart(
+    CartMutationType mutationType,
+    Product product,
+  ) async {
     final previousCart = _cartStore.snapshot();
-    final localResult = switch (mutation.type) {
-      CartMutationType.increment => _cartStore.increment(mutation.product),
-      CartMutationType.decrement => _cartStore.decrement(mutation.product),
-      CartMutationType.remove => _cartStore.remove(mutation.product),
+    final localResult = switch (mutationType) {
+      CartMutationType.increment => _cartStore.increment(product),
+      CartMutationType.decrement => _cartStore.decrement(product),
+      CartMutationType.remove => _cartStore.remove(product),
     };
 
     if (localResult case Failure<void>()) {
@@ -52,6 +69,18 @@ class CartViewModel extends ChangeNotifier {
     return const Success<void>(null);
   }
 
+  Future<Result<void>> _incrementProduct(Product product) {
+    return _updateCart(CartMutationType.increment, product);
+  }
+
+  Future<Result<void>> _decrementProduct(Product product) {
+    return _updateCart(CartMutationType.decrement, product);
+  }
+
+  Future<Result<void>> _removeProduct(Product product) {
+    return _updateCart(CartMutationType.remove, product);
+  }
+
   Future<Result<void>> _checkout() async {
     final checkoutResult = await _checkoutUseCase.execute(
       _cartStore.cart.value,
@@ -64,39 +93,31 @@ class CartViewModel extends ChangeNotifier {
     return _cartStore.lockForCompletedCheckout();
   }
 
-  Future<Result<void>> incrementProduct(Product product) {
-    return updateCartCommand.execute(
-      CartMutation(product: product, type: CartMutationType.increment),
-    );
-  }
+  Future<Result<void>> incrementProduct(Product product) =>
+      adicionarProdutoCommand.execute(product);
 
-  Future<Result<void>> decrementProduct(Product product) {
-    return updateCartCommand.execute(
-      CartMutation(product: product, type: CartMutationType.decrement),
-    );
-  }
+  Future<Result<void>> decrementProduct(Product product) =>
+      decrementarProdutoCommand.execute(product);
 
-  Future<Result<void>> removeProduct(Product product) {
-    return updateCartCommand.execute(
-      CartMutation(product: product, type: CartMutationType.remove),
-    );
-  }
+  Future<Result<void>> removeProduct(Product product) =>
+      removerProdutoCommand.execute(product);
 
   Future<Result<void>> checkout() => checkoutCommand.execute();
 
+  void clearUpdateCartError() {
+    adicionarProdutoCommand.clearError();
+    decrementarProdutoCommand.clearError();
+    removerProdutoCommand.clearError();
+  }
+
   @override
   void dispose() {
-    updateCartCommand.dispose();
+    adicionarProdutoCommand.dispose();
+    decrementarProdutoCommand.dispose();
+    removerProdutoCommand.dispose();
     checkoutCommand.dispose();
     super.dispose();
   }
 }
 
 enum CartMutationType { increment, decrement, remove }
-
-class CartMutation {
-  const CartMutation({required this.product, required this.type});
-
-  final Product product;
-  final CartMutationType type;
-}

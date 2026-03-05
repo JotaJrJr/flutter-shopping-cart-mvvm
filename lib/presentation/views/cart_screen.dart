@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shoppin_cart_mvvm/presentation/widgets/inline_error.dart';
 
 import '../../app/routes/app_routes.dart';
 import '../../core/result.dart';
@@ -49,7 +50,9 @@ class _CartScreenState extends State<CartScreen> {
     return AnimatedBuilder(
       animation: Listenable.merge([
         widget.cartStore.cart,
-        _viewModel.updateCartCommand,
+        _viewModel.adicionarProdutoCommand,
+        _viewModel.decrementarProdutoCommand,
+        _viewModel.removerProdutoCommand,
         _viewModel.checkoutCommand,
       ]),
       builder: (context, child) {
@@ -61,13 +64,13 @@ class _CartScreenState extends State<CartScreen> {
               ? const Center(child: Text('Seu carrinho está vazio.'))
               : Column(
                   children: [
-                    if (_viewModel.updateCartCommand.error != null)
-                      _InlineError(
-                        message: _viewModel.updateCartCommand.error!.message,
-                        onClose: _viewModel.updateCartCommand.clearError,
+                    if (_viewModel.updateCartError != null)
+                      InlineError(
+                        message: _viewModel.updateCartError!.message,
+                        onClose: _viewModel.clearUpdateCartError,
                       ),
                     if (_viewModel.checkoutCommand.error != null)
-                      _InlineError(
+                      InlineError(
                         message: _viewModel.checkoutCommand.error!.message,
                         onClose: _viewModel.checkoutCommand.clearError,
                       ),
@@ -79,18 +82,23 @@ class _CartScreenState extends State<CartScreen> {
                             const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           final item = cart.items[index];
-                          return _CartItemCard(
+                          return CartItemCard(
                             item: item,
                             isLocked: cart.isLocked,
-                            isBusy: _viewModel.updateCartCommand.running || _viewModel.checkoutCommand.running,
-                            onIncrement: () => _viewModel.incrementProduct(item.product),
-                            onDecrement: () => _viewModel.decrementProduct(item.product),
-                            onRemove: () => _viewModel.removeProduct(item.product),
+                            isBusy:
+                                _viewModel.isUpdateCartRunning ||
+                                _viewModel.checkoutCommand.running,
+                            onIncrement: () =>
+                                _viewModel.incrementProduct(item.product),
+                            onDecrement: () =>
+                                _viewModel.decrementProduct(item.product),
+                            onRemove: () =>
+                                _viewModel.removeProduct(item.product),
                           );
                         },
                       ),
                     ),
-                    _CartSummary(
+                    CartSummary(
                       cart: cart,
                       isCheckoutRunning: _viewModel.checkoutCommand.running,
                       onCheckout: () async {
@@ -116,14 +124,15 @@ class _CartScreenState extends State<CartScreen> {
   }
 }
 
-class _CartItemCard extends StatelessWidget {
-  const _CartItemCard({
+class CartItemCard extends StatelessWidget {
+  const CartItemCard({
     required this.item,
     required this.isLocked,
     required this.isBusy,
     required this.onIncrement,
     required this.onDecrement,
     required this.onRemove,
+    super.key, 
   });
 
   final CartItem item;
@@ -180,7 +189,7 @@ class _CartItemCard extends StatelessWidget {
                   else
                     Row(
                       children: [
-                        _RoundIconButton(
+                        RoundIconButton(
                           icon: Icons.remove,
                           onPressed: isBusy ? null : onDecrement,
                         ),
@@ -191,7 +200,7 @@ class _CartItemCard extends StatelessWidget {
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                         ),
-                        _RoundIconButton(
+                        RoundIconButton(
                           icon: Icons.add,
                           onPressed: isBusy ? null : onIncrement,
                         ),
@@ -213,11 +222,12 @@ class _CartItemCard extends StatelessWidget {
   }
 }
 
-class _CartSummary extends StatelessWidget {
-  const _CartSummary({
+class CartSummary extends StatelessWidget {
+  const CartSummary({
     required this.cart,
     required this.isCheckoutRunning,
     required this.onCheckout,
+    super.key, 
   });
 
   final Cart cart;
@@ -237,14 +247,14 @@ class _CartSummary extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _SummaryRow(label: 'Items', value: '${cart.totalItems}'),
+            SummaryRow(label: 'Items', value: '${cart.totalItems}'),
             const SizedBox(height: 6),
-            _SummaryRow(
+            SummaryRow(
               label: 'Subtotal',
               value: '\$${cart.subtotal.toStringAsFixed(2)}',
             ),
             const SizedBox(height: 6),
-            _SummaryRow(
+            SummaryRow(
               label: 'Total',
               value: '\$${cart.total.toStringAsFixed(2)}',
               emphasize: true,
@@ -268,11 +278,12 @@ class _CartSummary extends StatelessWidget {
   }
 }
 
-class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({
+class SummaryRow extends StatelessWidget {
+  const SummaryRow({
     required this.label,
     required this.value,
     this.emphasize = false,
+    super.key, 
   });
 
   final String label;
@@ -295,8 +306,12 @@ class _SummaryRow extends StatelessWidget {
   }
 }
 
-class _RoundIconButton extends StatelessWidget {
-  const _RoundIconButton({required this.icon, this.onPressed});
+class RoundIconButton extends StatelessWidget {
+  const RoundIconButton({
+    required this.icon,
+    this.onPressed,
+    super.key,
+  });
 
   final IconData icon;
   final VoidCallback? onPressed;
@@ -314,21 +329,3 @@ class _RoundIconButton extends StatelessWidget {
   }
 }
 
-class _InlineError extends StatelessWidget {
-  const _InlineError({required this.message, required this.onClose});
-
-  final String message;
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFFFFE1DA),
-      child: ListTile(
-        leading: const Icon(Icons.error_outline),
-        title: Text(message),
-        trailing: IconButton(onPressed: onClose, icon: const Icon(Icons.close)),
-      ),
-    );
-  }
-}

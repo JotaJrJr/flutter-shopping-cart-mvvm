@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shoppin_cart_mvvm/presentation/widgets/inline_error.dart';
 
 import '../../domain/entities/cart.dart';
 import '../../domain/entities/product.dart';
@@ -50,20 +51,21 @@ class _HomeScreenState extends State<HomeScreen> {
       animation: Listenable.merge([
         _viewModel,
         _viewModel.loadProductsCommand,
-        _viewModel.updateCartCommand,
+        _viewModel.adicionarProdutoCommand,
+        _viewModel.removerProdutoCommand,
       ]),
       builder: (context, child) {
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Catalog'),
+            title: const Text('Catálogo'),
             actions: [CartBadgeButton(cartStore: widget.cartStore)],
           ),
           body: Column(
             children: [
-              if (_viewModel.updateCartCommand.error != null)
-                _InlineError(
-                  message: _viewModel.updateCartCommand.error!.message,
-                  onClose: _viewModel.updateCartCommand.clearError,
+              if (_viewModel.updateCartError != null)
+                InlineError(
+                  message: _viewModel.updateCartError!.message,
+                  onClose: _viewModel.clearUpdateCartError,
                 ),
               Expanded(child: _buildBody()),
             ],
@@ -112,7 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
             final product = _viewModel.products[index];
             final quantity = widget.cartStore.quantityFor(product);
 
-            return _ProductCard(
+            return ProductCard(
               product: product,
               quantity: quantity,
               isBusy: _viewModel.isUpdatingProduct(product),
@@ -128,8 +130,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class _ProductCard extends StatelessWidget {
-  const _ProductCard({
+class ProductCard extends StatelessWidget {
+  const ProductCard({
     required this.product,
     required this.quantity,
     required this.isBusy,
@@ -137,6 +139,7 @@ class _ProductCard extends StatelessWidget {
     required this.onAdd,
     required this.onIncrement,
     required this.onDecrement,
+    super.key, 
   });
 
   final Product product;
@@ -298,21 +301,3 @@ class _QuantityControlState extends State<QuantityControl>
   }
 }
 
-class _InlineError extends StatelessWidget {
-  const _InlineError({required this.message, required this.onClose});
-
-  final String message;
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFFFFE1DA),
-      child: ListTile(
-        leading: const Icon(Icons.error_outline),
-        title: Text(message),
-        trailing: IconButton(onPressed: onClose, icon: const Icon(Icons.close)),
-      ),
-    );
-  }
-}

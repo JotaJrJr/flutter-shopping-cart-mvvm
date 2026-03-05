@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../core/command.dart';
+import '../../core/errors/app_exception.dart';
 import '../../core/result.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/usecases/load_products_use_case.dart';
@@ -14,13 +15,12 @@ class HomeViewModel extends ChangeNotifier {
     required SyncCartUseCase syncCartUseCase,
   }) : _cartStore = cartStore,
        _loadProductsUseCase = loadProductsUseCase,
-       _syncCartUseCase = syncCartUseCase,
-       loadProductsCommand = Command0(() async => const Success<void>(null)),
-       updateCartCommand = Command1<HomeCartMutation>(
-         (mutation) async => const Success<void>(null),
-       ) {
-    loadProductsCommand = Command0(_loadProducts);
-    updateCartCommand = Command1<HomeCartMutation>(_updateCart);
+       _syncCartUseCase = syncCartUseCase {
+    loadProductsCommand = ListarProdutosCommand(_loadProducts);
+    adicionarProdutoCommand = AdicionarProdutoCommand<Product>(
+      _incrementProduct,
+    );
+    removerProdutoCommand = RemoverProdutoCommand<Product>(_decrementProduct);
   }
 
   final CartStore _cartStore;
@@ -32,9 +32,12 @@ class HomeViewModel extends ChangeNotifier {
 
   List<Product> get products => _products;
   int? get updatingProductId => _updatingProductId;
+  bool get isUpdateCartRunning => adicionarProdutoCommand.running || removerProdutoCommand.running;
+  AppException? get updateCartError => adicionarProdutoCommand.error ?? removerProdutoCommand.error;
 
-  late Command0 loadProductsCommand;
-  late Command1<HomeCartMutation> updateCartCommand;
+  late final ListarProdutosCommand loadProductsCommand;
+  late final AdicionarProdutoCommand<Product> adicionarProdutoCommand;
+  late final RemoverProdutoCommand<Product> removerProdutoCommand;
 
   Future<Result<void>> _loadProducts() async {
     final result = await _loadProductsUseCase.execute();
@@ -49,14 +52,17 @@ class HomeViewModel extends ChangeNotifier {
     }
   }
 
-  Future<Result<void>> _updateCart(HomeCartMutation mutation) async {
-    _setUpdatingProduct(mutation.product.id);
+  Future<Result<void>> _updateCart({
+    required Product product,
+    required HomeCartMutationType mutationType,
+  }) async {
+    _setUpdatingProduct(product.id);
 
     try {
       final previousCart = _cartStore.snapshot();
-      final localResult = mutation.type == HomeCartMutationType.increment
-          ? _cartStore.increment(mutation.product)
-          : _cartStore.decrement(mutation.product);
+      final localResult = mutationType == HomeCartMutationType.increment
+          ? _cartStore.increment(product)
+          : _cartStore.decrement(product);
 
       if (localResult case Failure<void>()) {
         return localResult;
@@ -75,18 +81,29 @@ class HomeViewModel extends ChangeNotifier {
     }
   }
 
-  Future<Result<void>> loadProducts() => loadProductsCommand.execute();
-
-  Future<Result<void>> incrementProduct(Product product) {
-    return updateCartCommand.execute(
-      HomeCartMutation(product: product, type: HomeCartMutationType.increment),
+  Future<Result<void>> _incrementProduct(Product product) {
+    return _updateCart(
+      product: product,
+      mutationType: HomeCartMutationType.increment,
     );
   }
 
-  Future<Result<void>> decrementProduct(Product product) {
-    return updateCartCommand.execute(
-      HomeCartMutation(product: product, type: HomeCartMutationType.decrement),
+  Future<Result<void>> _decrementProduct(Product product) {
+    return _updateCart(
+      product: product,
+      mutationType: HomeCartMutationType.decrement,
     );
+  }
+
+  Future<Result<void>> loadProducts() => loadProductsCommand.execute();
+
+  Future<Result<void>> incrementProduct(Product product) => adicionarProdutoCommand.execute(product);
+
+  Future<Result<void>> decrementProduct(Product product) => removerProdutoCommand.execute(product);
+
+  void clearUpdateCartError() {
+    adicionarProdutoCommand.clearError();
+    removerProdutoCommand.clearError();
   }
 
   bool isUpdatingProduct(Product product) => _updatingProductId == product.id;
@@ -103,16 +120,10 @@ class HomeViewModel extends ChangeNotifier {
   @override
   void dispose() {
     loadProductsCommand.dispose();
-    updateCartCommand.dispose();
+    adicionarProdutoCommand.dispose();
+    removerProdutoCommand.dispose();
     super.dispose();
   }
 }
 
 enum HomeCartMutationType { increment, decrement }
-
-class HomeCartMutation {
-  const HomeCartMutation({required this.product, required this.type});
-
-  final Product product;
-  final HomeCartMutationType type;
-}

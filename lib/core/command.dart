@@ -3,38 +3,38 @@ import 'package:flutter/foundation.dart';
 import 'errors/app_exception.dart';
 import 'result.dart';
 
-typedef CommandAction0 = Future<Result<void>> Function();
-typedef CommandAction1<T> = Future<Result<void>> Function(T value);
-
-class Command0 extends ChangeNotifier {
-  Command0(this._action);
-
-  final CommandAction0 _action;
-
+abstract class CommandBase extends ChangeNotifier {
   bool _running = false;
   AppException? _error;
 
   bool get running => _running;
   AppException? get error => _error;
 
-  Future<Result<void>> execute() async {
+  Future<Result<void>> run(Future<Result<void>> Function() action) async {
     if (_running) {
-      return const Failure<void>(AppException('Um pedido já está em andamento.'));
+      return const Failure<void>(
+        AppException('Um pedido já está em andamento.'),
+      );
     }
 
     _running = true;
     _error = null;
     notifyListeners();
 
-    final result = await _action();
-
-    _running = false;
-    if (result is Failure<void>) {
-      _error = result.error;
+    try {
+      final result = await action();
+      if (result case Failure<void>()) {
+        _error = result.error;
+      }
+      return result;
+    } catch (error) {
+      final appException = AppException(error.toString());
+      _error = appException;
+      return Failure<void>(appException);
+    } finally {
+      _running = false;
+      notifyListeners();
     }
-    notifyListeners();
-
-    return result;
   }
 
   void clearError() {
@@ -47,43 +47,34 @@ class Command0 extends ChangeNotifier {
   }
 }
 
-class Command1<T> extends ChangeNotifier {
-  Command1(this._action);
+class ListarProdutosCommand extends CommandBase {
+  ListarProdutosCommand(this._action);
 
-  final CommandAction1<T> _action;
+  final Future<Result<void>> Function() _action;
 
-  bool _running = false;
-  AppException? _error;
+  Future<Result<void>> execute() => run(_action);
+}
 
-  bool get running => _running;
-  AppException? get error => _error;
+class AdicionarProdutoCommand<T> extends CommandBase {
+  AdicionarProdutoCommand(this._action);
 
-  Future<Result<void>> execute(T value) async {
-    if (_running) {
-      return const Failure<void>(AppException('Um pedido já está em andamento.'));
-    }
+  final Future<Result<void>> Function(T value) _action;
 
-    _running = true;
-    _error = null;
-    notifyListeners();
+  Future<Result<void>> execute(T value) => run(() => _action(value));
+}
 
-    final result = await _action(value);
+class RemoverProdutoCommand<T> extends CommandBase {
+  RemoverProdutoCommand(this._action);
 
-    _running = false;
-    if (result is Failure<void>) {
-      _error = result.error;
-    }
-    notifyListeners();
+  final Future<Result<void>> Function(T value) _action;
 
-    return result;
-  }
+  Future<Result<void>> execute(T value) => run(() => _action(value));
+}
 
-  void clearError() {
-    if (_error == null) {
-      return;
-    }
+class FinalizarCompraCommand extends CommandBase {
+  FinalizarCompraCommand(this._action);
 
-    _error = null;
-    notifyListeners();
-  }
+  final Future<Result<void>> Function() _action;
+
+  Future<Result<void>> execute() => run(_action);
 }
