@@ -29,6 +29,7 @@ class CartViewModel extends ChangeNotifier {
   final CartStore _cartStore;
   final SyncCartUseCase _syncCartUseCase;
   final CheckoutUseCase _checkoutUseCase;
+  int? _updatingProductId;
 
   late final AdicionarProdutoCommand<Product> adicionarProdutoCommand;
   late final RemoverProdutoCommand<Product> decrementarProdutoCommand;
@@ -39,6 +40,7 @@ class CartViewModel extends ChangeNotifier {
       adicionarProdutoCommand.running ||
       decrementarProdutoCommand.running ||
       removerProdutoCommand.running;
+  int? get updatingProductId => _updatingProductId;
   AppException? get updateCartError =>
       adicionarProdutoCommand.error ??
       decrementarProdutoCommand.error ??
@@ -48,25 +50,30 @@ class CartViewModel extends ChangeNotifier {
     CartMutationType mutationType,
     Product product,
   ) async {
-    final previousCart = _cartStore.snapshot();
-    final localResult = switch (mutationType) {
-      CartMutationType.increment => _cartStore.increment(product),
-      CartMutationType.decrement => _cartStore.decrement(product),
-      CartMutationType.remove => _cartStore.remove(product),
-    };
+    _setUpdatingProduct(product.id);
+    try {
+      final previousCart = _cartStore.snapshot();
+      final localResult = switch (mutationType) {
+        CartMutationType.increment => _cartStore.increment(product),
+        CartMutationType.decrement => _cartStore.decrement(product),
+        CartMutationType.remove => _cartStore.remove(product),
+      };
 
-    if (localResult case Failure<void>()) {
-      return localResult;
+      if (localResult case Failure<void>()) {
+        return localResult;
+      }
+
+      final syncResult = await _syncCartUseCase.execute(_cartStore.cart.value);
+
+      if (syncResult case Failure<void>()) {
+        _cartStore.restore(previousCart);
+        return syncResult;
+      }
+
+      return const Success<void>(null);
+    } finally {
+      _setUpdatingProduct(null);
     }
-
-    final syncResult = await _syncCartUseCase.execute(_cartStore.cart.value);
-
-    if (syncResult case Failure<void>()) {
-      _cartStore.restore(previousCart);
-      return syncResult;
-    }
-
-    return const Success<void>(null);
   }
 
   Future<Result<void>> _incrementProduct(Product product) {
@@ -108,6 +115,17 @@ class CartViewModel extends ChangeNotifier {
     adicionarProdutoCommand.clearError();
     decrementarProdutoCommand.clearError();
     removerProdutoCommand.clearError();
+  }
+
+  bool isUpdatingProduct(Product product) => _updatingProductId == product.id;
+
+  void _setUpdatingProduct(int? productId) {
+    if (_updatingProductId == productId) {
+      return;
+    }
+
+    _updatingProductId = productId;
+    notifyListeners();
   }
 
   @override

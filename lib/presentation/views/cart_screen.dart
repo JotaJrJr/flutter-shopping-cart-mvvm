@@ -9,6 +9,7 @@ import '../../domain/usecases/checkout_use_case.dart';
 import '../../domain/usecases/sync_cart_use_case.dart';
 import '../stores/cart_store.dart';
 import '../viewmodels/cart_view_model.dart';
+import '../widgets/quantity_control.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({
@@ -49,6 +50,7 @@ class _CartScreenState extends State<CartScreen> {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: Listenable.merge([
+        _viewModel,
         widget.cartStore.cart,
         _viewModel.adicionarProdutoCommand,
         _viewModel.decrementarProdutoCommand,
@@ -86,7 +88,7 @@ class _CartScreenState extends State<CartScreen> {
                             item: item,
                             isLocked: cart.isLocked,
                             isBusy:
-                                _viewModel.isUpdateCartRunning ||
+                                _viewModel.isUpdatingProduct(item.product) ||
                                 _viewModel.checkoutCommand.running,
                             onIncrement: () =>
                                 _viewModel.incrementProduct(item.product),
@@ -132,7 +134,7 @@ class CartItemCard extends StatelessWidget {
     required this.onIncrement,
     required this.onDecrement,
     required this.onRemove,
-    super.key, 
+    super.key,
   });
 
   final CartItem item;
@@ -189,20 +191,10 @@ class CartItemCard extends StatelessWidget {
                   else
                     Row(
                       children: [
-                        RoundIconButton(
-                          icon: Icons.remove,
-                          onPressed: isBusy ? null : onDecrement,
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Text(
-                            '${item.quantity}',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ),
-                        RoundIconButton(
-                          icon: Icons.add,
-                          onPressed: isBusy ? null : onIncrement,
+                        QuantityControl(
+                          quantity: item.quantity,
+                          onIncrement: isBusy ? null : onIncrement,
+                          onDecrement: isBusy ? null : onDecrement,
                         ),
                         const Spacer(),
                         TextButton.icon(
@@ -227,7 +219,7 @@ class CartSummary extends StatelessWidget {
     required this.cart,
     required this.isCheckoutRunning,
     required this.onCheckout,
-    super.key, 
+    super.key,
   });
 
   final Cart cart;
@@ -248,11 +240,6 @@ class CartSummary extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             SummaryRow(label: 'Items', value: '${cart.totalItems}'),
-            const SizedBox(height: 6),
-            SummaryRow(
-              label: 'Subtotal',
-              value: '\$${cart.subtotal.toStringAsFixed(2)}',
-            ),
             const SizedBox(height: 6),
             SummaryRow(
               label: 'Total',
@@ -283,7 +270,7 @@ class SummaryRow extends StatelessWidget {
     required this.label,
     required this.value,
     this.emphasize = false,
-    super.key, 
+    super.key,
   });
 
   final String label;
@@ -305,27 +292,3 @@ class SummaryRow extends StatelessWidget {
     );
   }
 }
-
-class RoundIconButton extends StatelessWidget {
-  const RoundIconButton({
-    required this.icon,
-    this.onPressed,
-    super.key,
-  });
-
-  final IconData icon;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton.filledTonal(
-      onPressed: onPressed,
-      icon: Icon(icon),
-      style: IconButton.styleFrom(
-        minimumSize: const Size(36, 36),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      ),
-    );
-  }
-}
-
