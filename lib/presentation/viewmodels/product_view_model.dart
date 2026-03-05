@@ -12,9 +12,9 @@ class ProductViewModel extends ChangeNotifier {
     required CartStore cartStore,
     required SyncCartUseCase syncCartUseCase,
     required Product product,
-  }) : _cartStore = cartStore,
-       _syncCartUseCase = syncCartUseCase,
-       _product = product {
+  })  : _cartStore = cartStore,
+        _syncCartUseCase = syncCartUseCase,
+        _product = product {
     _quantity = cartStore.quantityFor(product);
     
     adicionarProdutoCommand = AdicionarProdutoCommand<Product>(
@@ -35,8 +35,18 @@ class ProductViewModel extends ChangeNotifier {
   Product get product => _product;
   int get quantity => _quantity;
   bool get isUpdating => _isUpdating;
-  bool get isUpdateCartRunning => adicionarProdutoCommand.running || removerProdutoCommand.running;
-  AppException? get updateCartError => adicionarProdutoCommand.error ?? removerProdutoCommand.error;
+  bool get isUpdateCartRunning => 
+      (adicionarProdutoCommand.running || removerProdutoCommand.running);
+  
+  AppException? get updateCartError {
+    if (adicionarProdutoCommand.error != null) {
+      return adicionarProdutoCommand.error;
+    }
+    if (removerProdutoCommand.error != null) {
+      return removerProdutoCommand.error;
+    }
+    return null;
+  }
 
   late final AdicionarProdutoCommand<Product> adicionarProdutoCommand;
   late final RemoverProdutoCommand<Product> removerProdutoCommand;
@@ -64,6 +74,7 @@ class ProductViewModel extends ChangeNotifier {
         return syncResult;
       }
 
+      // Atualiza a quantidade local após sucesso
       _quantity = _cartStore.quantityFor(product);
       return const Success<void>(null);
     } finally {
@@ -85,12 +96,20 @@ class ProductViewModel extends ChangeNotifier {
     );
   }
 
-  Future<Result<void>> incrementProduct() => adicionarProdutoCommand.execute(_product);
-  Future<Result<void>> decrementProduct() => removerProdutoCommand.execute(_product);
+  Future<Result<void>> incrementProduct() {
+    if (_isUpdating) return Future.value(const Success<void>(null));
+    return adicionarProdutoCommand.execute(_product);
+  }
+
+  Future<Result<void>> decrementProduct() {
+    if (_isUpdating) return Future.value(const Success<void>(null));
+    return removerProdutoCommand.execute(_product);
+  }
 
   void clearUpdateCartError() {
     adicionarProdutoCommand.clearError();
     removerProdutoCommand.clearError();
+    notifyListeners();
   }
 
   void _setIsUpdating(bool isUpdating) {

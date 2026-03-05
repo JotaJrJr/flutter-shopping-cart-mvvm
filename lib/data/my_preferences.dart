@@ -10,7 +10,7 @@ class MyPreferences {
   MyPreferences._internal();
 
   final userId = Cached<String?>('userId', null);
-  
+  final cartSnapshotJson = Cached<String>('cartSnapshotJson', '');
 }
 
 class Cached<T> {
