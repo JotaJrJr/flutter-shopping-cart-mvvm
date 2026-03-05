@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:shoppin_cart_mvvm/presentation/viewmodels/product_view_model.dart';
+import 'package:shoppin_cart_mvvm/presentation/views/product_screen.dart';
 
 import '../data/repositories/cart_sync_repository_impl.dart';
 import '../data/repositories/checkout_repository_impl.dart';
@@ -6,6 +8,7 @@ import '../data/repositories/products_repository_impl.dart';
 import '../data/services/cart_api.dart';
 import '../data/services/checkout_api.dart';
 import '../data/services/products_api.dart';
+import '../domain/entities/product.dart';
 import '../domain/usecases/checkout_use_case.dart';
 import '../domain/usecases/load_products_use_case.dart';
 import '../domain/usecases/sync_cart_use_case.dart';
@@ -68,6 +71,31 @@ class _ShoppingCartAppState extends State<ShoppingCartApp> {
           case AppRoutes.orderComplete:
             return MaterialPageRoute<void>(
               builder: (_) => OrderCompleteScreen(cartStore: _cartStore),
+              settings: settings,
+            );
+          case AppRoutes.product:
+            final product = settings.arguments;
+            if (product is! Product) {
+              return MaterialPageRoute<void>(
+                builder: (_) => HomeScreen(
+                  cartStore: _cartStore,
+                  loadProductsUseCase: _loadProductsUseCase,
+                  syncCartUseCase: _syncCartUseCase,
+                ),
+                settings: settings,
+              );
+            }
+            return MaterialPageRoute<void>(
+              builder: (_) =>
+                  ProductScreen(
+                    product: product,
+                    cartStore: _cartStore,
+                    viewModel: ProductViewModel(
+                      product: product,
+                      cartStore: _cartStore,
+                      syncCartUseCase: _syncCartUseCase,
+                    ),
+                  ),
               settings: settings,
             );
           default:

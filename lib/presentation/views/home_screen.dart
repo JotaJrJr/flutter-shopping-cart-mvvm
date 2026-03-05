@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shoppin_cart_mvvm/app/routes/app_routes.dart';
 import 'package:shoppin_cart_mvvm/presentation/widgets/inline_error.dart';
 
 import '../../domain/entities/cart.dart';
@@ -158,67 +159,75 @@ class ProductCard extends StatelessWidget {
 
     return Card(
       clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                product.imageUrl,
-                width: 88,
-                height: 88,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  width: 88,
-                  height: 88,
-                  color: const Color(0xFFE3DED2),
-                  alignment: Alignment.center,
-                  child: const Icon(Icons.image_not_supported_outlined),
+      child: GestureDetector(
+        onTap: () {
+          Navigator.of(context).pushNamed(AppRoutes.product, arguments: product);
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Hero(
+                  tag: 'product_image_${product.id}',
+                  child: Image.network(
+                    product.imageUrl,
+                    width: 88,
+                    height: 88,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: 88,
+                      height: 88,
+                      color: const Color(0xFFE3DED2),
+                      alignment: Alignment.center,
+                      child: const Icon(Icons.image_not_supported_outlined),
+                    ),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    product.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    product.category,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '\$${product.price.toStringAsFixed(2)}',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: const Color(0xFF0C6D62),
-                      fontWeight: FontWeight.w700,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      product.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  if (quantity == 0)
-                    FilledButton(
-                      onPressed: isBusy || !canAddNewProduct ? null : onAdd,
-                      child: const Text('Adicionar ao carrinho'),
-                    )
-                  else
-                    QuantityControl(
-                      quantity: quantity,
-                      onIncrement: isBusy || !canIncrement ? null : onIncrement,
-                      onDecrement: isBusy ? null : onDecrement,
+                    const SizedBox(height: 6),
+                    Text(
+                      product.category,
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      '\$${product.price.toStringAsFixed(2)}',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: const Color(0xFF0C6D62),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    if (quantity == 0)
+                      FilledButton(
+                        onPressed: isBusy || !canAddNewProduct ? null : onAdd,
+                        child: const Text('Adicionar ao carrinho'),
+                      )
+                    else
+                      QuantityControl(
+                        quantity: quantity,
+                        onIncrement: isBusy || !canIncrement ? null : onIncrement,
+                        onDecrement: isBusy ? null : onDecrement,
+                      ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
